@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "ds-test": "github:dapphub/ds-test",
+    "forge-std": "^1.1.2"
+  }
+}
