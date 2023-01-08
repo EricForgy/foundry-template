@@ -1,0 +1,1 @@
+This repository is based on https://github.com/foundry-rs/forge-template, but removes the dependency on git submodules.
