@@ -1,6 +1,13 @@
 {
+  "name": "foundry-template",
+  "version": "0.1.0",
+  "description": "Foundry template (no submodules).",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "",
+  "license": "",
   "dependencies": {
-    "ds-test": "github:dapphub/ds-test",
-    "forge-std": "^1.1.2"
+    "forge-std": "github:foundry-rs/forge-std#v1.6.0"
   }
 }
