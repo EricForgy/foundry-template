@@ -1,8 +1,8 @@
 [profile.default]
 src = 'contracts'                                             # the source directory
-test = 'tests'                                       # the test directory
-out = 'artifacts/foundry/contracts'                    # the output directory (for artifacts)
-libs = []                                                     # a list of library directories
+test = 'tests'                                                # the test directory
+out = 'artifacts/foundry/contracts'                           # the output directory (for artifacts)
+libs = ['libraries', 'tests/librariies']                      # a list of library directories
 remappings = []                                               # a list of remappings
 libraries = []                                                # a list of deployed libraries to link against
 cache = true                                                  # whether to cache builds or not
@@ -28,5 +28,4 @@ block_coinbase = '0x0000000000000000000000000000000000000000' # the address of `
 block_timestamp = 0                                           # the value of `block.timestamp` in tests
 block_difficulty = 0                                          # the value of `block.difficulty` in tests
 fs_permissions = [{ access = "write", path = "./"}]
-# gas_reports = ["Pool", "LPToken", "Users", "FloatingPoint"]
 gas_reports = ["*"]
