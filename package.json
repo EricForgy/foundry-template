@@ -1,6 +1,6 @@
 {
   "name": "foundry-template",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Foundry template (no submodules).",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -8,6 +8,6 @@
   "author": "",
   "license": "",
   "dependencies": {
-    "forge-std": "github:foundry-rs/forge-std#v1.6.0"
+    "forge-std": "github:foundry-rs/forge-std"
   }
 }
