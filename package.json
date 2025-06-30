@@ -7,7 +7,7 @@
   },
   "author": "",
   "license": "",
-  "dependencies": {
+  "devDependencies": {
     "forge-std": "github:foundry-rs/forge-std"
   }
 }
