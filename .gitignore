@@ -1,3 +1,5 @@
+.DS_Store
+
 # Compiler files
 cache/
 artifacts/
@@ -11,3 +13,5 @@ artifacts/
 .env
 
 node_modules/
+
+tests/data/**

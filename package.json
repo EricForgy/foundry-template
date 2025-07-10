@@ -1,13 +1,13 @@
 {
-  "name": "foundry-template",
-  "version": "0.2.0",
-  "description": "Foundry template (no submodules).",
+  "name": "replay-transactions",
+  "version": "0.0.1",
+  "description": "",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
   "license": "",
-  "devDependencies": {
+  "dependencies": {
     "forge-std": "github:foundry-rs/forge-std"
   }
 }
