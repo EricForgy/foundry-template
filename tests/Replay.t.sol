@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 // import { console } from "forge-std/console.sol";
 import {console2 as console} from "forge-std/console2.sol";
 import "./IJackRebalancePool.sol";
-import { RebalancePoolStorageReader as Reader } from "../contracts/utils/RebalancePoolStorageReader.sol";
+import {RebalancePoolStorageReader as Reader} from "../contracts/utils/RebalancePoolStorageReader.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
@@ -65,6 +65,8 @@ contract ReplayTest is Test {
     bytes32 txHashFirstDeposit;
     bytes32 txHashFirstReward;
     address user;
+    address userFirst;
+    address userMostActive;
 
     string txhashPath;
 
@@ -106,6 +108,7 @@ contract ReplayTest is Test {
     function setUp() public {
         // Set up your fork
         rpc = "https://api.avax.network/ext/bc/C/rpc";
+        // rpc = "https://site1.moralis-nodes.com/avalanche/1be6a26ede1245e0b7c90fe33115a012";
         forkId = vm.createSelectFork(rpc);
 
         // Optional: protocol-specific setup
@@ -118,8 +121,8 @@ contract ReplayTest is Test {
         sAVAX = 0x2b2C81e08f1Af8835a78Bb2A90AE924ACE0eA4bE;
         txHashFirstDeposit = 0x4372a0106c4dec103e3ec3fc7a05a4cdc609c20e6ac0f6bc03cd1e9613bbc9f8;
         txHashFirstReward = 0x4d68abba2cc316477376969e62df2b8c220a1e9b4a7cd065f863cbf735e1fd13;
-        // user = 0xF1102711b8df5EA6f934cb42F618ed040d0d5da6; // First user
-        user = 0x16Fb7860Bd5e34E0021396fD79d7561eb4409023; // Most active user
+        userFirst = 0xF1102711b8df5EA6f934cb42F618ed040d0d5da6; // First user
+        userMostActive = 0x16Fb7860Bd5e34E0021396fD79d7561eb4409023; // Most active user
 
         // txHashPath = "/tests/data/tx_hashes.json"; // All tx hashes
         txhashPath = "/tests/data/most_active_user_tx_hashes.json";
@@ -145,12 +148,12 @@ contract ReplayTest is Test {
             "Total supply should be zero at initialization"
         );
         assertEq(
-            rp.balanceOf(user),
+            rp.balanceOf(userMostActive),
             0,
             "Balance should be zero at initialization"
         );
         assertEq(
-            rp.unlockedBalanceOf(user),
+            rp.unlockedBalanceOf(userMostActive),
             0,
             "Unlocked balance should be zero at initialization"
         );
@@ -193,15 +196,27 @@ contract ReplayTest is Test {
         vm.rollFork(forkId, txHashes[1]);
 
         console.log("totalSupply:", rp.totalSupply());
-        // console.log("balanceOf(user):", rp.balanceOf(user));
-        // console.log("unlockedBalanceOf(user):", rp.unlockedBalanceOf(user));
-        // console.log("claimable(user, baseToken):", rp.claimable(user, baseToken));
+        // console.log("balanceOf(userMostActive):", rp.balanceOf(userMostActive));
+        // console.log("unlockedBalanceOf(userMostActive):", rp.unlockedBalanceOf(userMostActive));
+        // console.log("claimable(userMostActive, baseToken):", rp.claimable(userMostActive, baseToken));
         // console.log("baseToken balance:", IERC20(baseToken).balanceOf(address(rp)));
-        assertEq(vm.treasury(address(rp)), treasury, "Treasury address mismatch");
+        assertEq(
+            vm.treasury(address(rp)),
+            treasury,
+            "Treasury address mismatch"
+        );
         assertEq(vm.market(address(rp)), market, "Market address mismatch");
-        assertEq(vm.baseToken(address(rp)), baseToken, "Base token address mismatch");
+        assertEq(
+            vm.baseToken(address(rp)),
+            baseToken,
+            "Base token address mismatch"
+        );
         assertEq(vm.asset(address(rp)), aToken, "Asset address mismatch");
-        assertEq(rp.totalSupply(), vm.totalSupply(address(rp)), "Total supply mismatch");
+        assertEq(
+            rp.totalSupply(),
+            vm.totalSupply(address(rp)),
+            "Total supply mismatch"
+        );
 
         address[] memory extraRewardTokens = vm.extraRewards(address(rp));
         for (uint256 i = 0; i < extraRewardTokens.length; i++) {
@@ -214,15 +229,125 @@ contract ReplayTest is Test {
         console.log("Scale:", epochState.scale);
         console.log("Prod:", epochState.prod);
 
-        Reader.UserSnapshot memory userSnapshot = vm.userSnapshot(address(rp), user);
-        assertEq(rp.balanceOf(user), userSnapshot.initialDeposit, "User deposit mismatch");
+        Reader.UserSnapshot memory userSnapshot = vm.userSnapshot(
+            address(rp),
+            userMostActive
+        );
+        assertEq(
+            rp.balanceOf(userMostActive),
+            userSnapshot.initialDeposit,
+            "User deposit mismatch"
+        );
         console.log("User initialDeposit:", userSnapshot.initialDeposit);
-        console.log("User initialUnlock.amount:", userSnapshot.initialUnlock.amount);
+        console.log(
+            "User initialUnlock.amount:",
+            userSnapshot.initialUnlock.amount
+        );
         console.log("User epoch.epoch:", userSnapshot.epoch.epoch);
         console.log("User epoch.scale:", userSnapshot.epoch.scale);
         console.log("User epoch.prod:", userSnapshot.epoch.prod);
-        console.log("User baseReward.pending:", userSnapshot.baseReward.pending);
-        console.log("User baseReward.accRewardsPerStake:", userSnapshot.baseReward.accRewardsPerStake);
+        console.log(
+            "User baseReward.pending:",
+            userSnapshot.baseReward.pending
+        );
+        console.log(
+            "User baseReward.accRewardsPerStake:",
+            userSnapshot.baseReward.accRewardsPerStake
+        );
+    }
+
+    function testReplayToNDJSON() public {
+        string memory path = string.concat(
+            vm.projectRoot(),
+            "/tests/data/tx_hashes_users.ndjson"
+        );
+
+        string memory line;
+        bytes32 txHash;
+        bytes32 oldTxHash;
+        uint256 txNumber = 1005; // Overall transaction counter
+        uint256 txCount = 1000;
+        uint256 txStop = txNumber + txCount; // Stop after txCount transactions
+        uint256 txCounter = 1;
+
+        // Skip lines up to txNumber
+        while (txCounter <= txNumber) {
+            line = vm.readLine(path);
+            if (bytes(line).length == 0) {
+                console.log("Reached end of file before txNumber", txNumber);
+                return; // Exit if file ends before txNumber
+            }
+            txHash = bytes32(vm.parseJson(line, "$.tx_hash"));
+            if (txHash == oldTxHash) continue; // Skip duplicate tx_hashes
+            oldTxHash = txHash; // Update oldTxHash to current txHash
+            txCounter++; // Increment transaction counter
+        }
+
+        // Process lines from txNumber to txStop
+        oldTxHash = bytes32(0); // Reset oldTxHash for new processing
+        while (true) {
+            if (bytes(line).length == 0 || txNumber >= txStop) break; // End of file or exceeded txStop
+
+            // Parse the line into tx_hash and user
+            txHash = bytes32(vm.parseJson(line, "$.tx_hash"));
+            if (txHash == oldTxHash) continue; // Skip duplicate tx_hashes
+            user = vm.parseJsonAddress(line, "$.user");
+            // console.log("Processing tx_hash:", vm.toString(txHash));
+            // console.log("for user:", vm.toString(user));
+            // console.log("at tx_number:", txNumber);
+
+            uint256 chainId = 43114; // Avalanche mainnet chain ID
+
+            vm.rollFork(forkId, txHash);
+
+            // Capture pre-state in Cache using writeStateCache
+            Reader.StateCache memory preCache = Reader.writeStateCache(
+                vm,
+                address(rp),
+                user
+            );
+
+            // Replay the transaction
+            vm.transact(forkId, txHash);
+
+            // Capture post-state in Cache using writeStateCache
+            Reader.StateCache memory postCache = Reader.writeStateCache(
+                vm,
+                address(rp),
+                user
+            );
+
+            // Construct and write NDJSON line with user address
+            string memory txJson = string.concat(
+                "{",
+                '"tx_number":',
+                vm.toString(txNumber),
+                ",",
+                '"tx_hash":"',
+                vm.toString(txHash),
+                '",',
+                '"user":"',
+                vm.toString(address(user)), // Added user address
+                '",',
+                '"chain_id":',
+                vm.toString(chainId),
+                ",",
+                '"pre_state":',
+                preCache.stateJson,
+                ",",
+                '"post_state":',
+                postCache.stateJson,
+                "}"
+            );
+
+            vm.writeLine("output.ndjson", txJson);
+
+            oldTxHash = txHash; // Update oldTxHash to current txHash
+            txNumber++; // Increment transaction counter
+            line = vm.readLine(path);
+        }
+
+        vm.closeFile(path); // Close the file to reset offset for future reads
     }
 
     function testReplayAllHashes() public {

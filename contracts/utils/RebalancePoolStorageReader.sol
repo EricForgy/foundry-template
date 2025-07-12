@@ -3,6 +3,10 @@ pragma solidity ^0.8.28;
 
 import "forge-std/Vm.sol";
 
+interface IERC20 {
+    function balanceOf(address account) external view returns (uint256);
+}
+
 library RebalancePoolStorageReader {
     struct RewardState {
         uint256 rate;
@@ -33,6 +37,30 @@ library RebalancePoolStorageReader {
         UserUnlock initialUnlock;
         EpochState epoch;
         UserRewardSnapshot baseReward;
+    }
+
+    function writeJson(
+        Vm vm,
+        address[] memory a
+    ) internal pure returns (string memory) {
+        if (a.length == 0) {
+            return "[]";
+        }
+
+        // Initialize with opening bracket
+        string memory json = "[";
+
+        // Build array elements
+        for (uint256 i = 0; i < a.length; i++) {
+            json = string.concat(json, '"', vm.toString(a[i]), '"');
+            if (i < a.length - 1) {
+                json = string.concat(json, ",");
+            }
+        }
+
+        // Close the array
+        json = string.concat(json, "]");
+        return json;
     }
 
     function writeJson(
@@ -157,8 +185,9 @@ library RebalancePoolStorageReader {
         uint256 slot,
         uint256 offset
     ) internal view returns (bool value) {
+        require(offset < 32, "Offset out of bounds");
         bytes32 raw = _load(vm, target, slot);
-        uint8 bit = uint8(raw[offset]);
+        uint8 bit = uint8(uint256(raw) >> (offset * 8)); // Shift by byte
         return bit != 0;
     }
 
@@ -248,8 +277,8 @@ library RebalancePoolStorageReader {
         Vm vm,
         address target
     ) internal view returns (EpochState memory e) {
-        bytes32 baseSlot = bytes32(uint256(115));
-        bytes32 word = _load(vm, target, uint256(baseSlot));
+        uint256 baseSlot = 115; // Use uint256 for clarity
+        bytes32 word = _load(vm, target, baseSlot);
 
         e.epoch = uint64(uint256(word));
         e.scale = uint64(uint256(word) >> 64);
@@ -261,23 +290,18 @@ library RebalancePoolStorageReader {
         address target,
         address user
     ) internal view returns (UserSnapshot memory s) {
-        uint256 baseSlot = uint256(
-            keccak256(abi.encode(user, uint256(116))) // Changed to abi.encode
-        );
-
-        s.initialDeposit = uint256(_load(vm, target, baseSlot));
-        s.initialUnlock.amount = uint256(_load(vm, target, baseSlot + 1));
-        s.initialUnlock.unlockAt = uint256(_load(vm, target, baseSlot + 2));
+        uint256 baseSlot = uint256(keccak256(abi.encode(user, uint256(116)))); // Consistent abi.encode
+        s.initialDeposit = loadUint256(vm, target, baseSlot);
+        s.initialUnlock.amount = loadUint256(vm, target, baseSlot + 1);
+        s.initialUnlock.unlockAt = loadUint256(vm, target, baseSlot + 2);
 
         bytes32 epochWord = _load(vm, target, baseSlot + 3);
         s.epoch.epoch = uint64(uint256(epochWord));
         s.epoch.scale = uint64(uint256(epochWord) >> 64);
         s.epoch.prod = uint128(uint256(epochWord) >> 128);
 
-        s.baseReward.pending = uint256(_load(vm, target, baseSlot + 4));
-        s.baseReward.accRewardsPerStake = uint256(
-            _load(vm, target, baseSlot + 5)
-        );
+        s.baseReward.pending = loadUint256(vm, target, baseSlot + 4);
+        s.baseReward.accRewardsPerStake = loadUint256(vm, target, baseSlot + 5);
     }
 
     function readExtraRewardSnapshot(
@@ -319,5 +343,51 @@ library RebalancePoolStorageReader {
         r.lastUpdate = uint48(uint256(word1) >> 32);
         r.finishAt = uint48(uint256(word1) >> 80);
         r.queued = uint256(_load(vm, target, uint256(baseSlot) + 2));
+    }
+
+    // Cache struct to hold all state variables
+    struct StateCache {
+        uint256 totalSupply;
+        uint256 totalReward;
+        EpochState epoch;
+        RewardState baseReward;
+        UserSnapshot userSnap;
+        address[] extraRewards;
+        string stateJson; // To store the final JSON string
+    }
+
+    function writeStateCache(
+        Vm vm,
+        address target,
+        address user
+    ) internal view returns (StateCache memory cache) {
+        address rewardToken = baseToken(vm, target);
+        cache.totalSupply = totalSupply(vm, target);
+        cache.epoch = epochState(vm, target);
+        cache.baseReward = readRewardState(vm, target, rewardToken);
+        cache.userSnap = userSnapshot(vm, target, user);
+        cache.extraRewards = extraRewards(vm, target);
+        cache.stateJson = string.concat(
+            "{",
+            '"totalDeposit":',
+            vm.toString(cache.totalSupply),
+            ",",
+            '"totalReward":',
+            vm.toString(IERC20(rewardToken).balanceOf(target)),
+            ",",
+            '"epoch":',
+            writeJson(vm, cache.epoch),
+            ",",
+            '"baseReward":',
+            writeJson(vm, cache.baseReward),
+            ",",
+            '"userSnapshot":',
+            writeJson(vm, cache.userSnap),
+            ",",
+            '"extraRewards":',
+            writeJson(vm, cache.extraRewards),
+            "}"
+        );
+
     }
 }
