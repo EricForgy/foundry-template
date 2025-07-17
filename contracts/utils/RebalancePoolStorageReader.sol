@@ -37,6 +37,7 @@ library RebalancePoolStorageReader {
         UserUnlock initialUnlock;
         EpochState epoch;
         UserRewardSnapshot baseReward;
+        UserRewardSnapshot[] extraRewards; // Array for extra rewards
     }
 
     function writeJson(
@@ -302,9 +303,20 @@ library RebalancePoolStorageReader {
 
         s.baseReward.pending = loadUint256(vm, target, baseSlot + 4);
         s.baseReward.accRewardsPerStake = loadUint256(vm, target, baseSlot + 5);
+
+        address[] memory extraRewardsList = extraRewards(vm, target);
+        s.extraRewards = new UserRewardSnapshot[](extraRewardsList.length);
+        for (uint256 i = 0; i < extraRewardsList.length; i++) {
+            s.extraRewards[i] = extraRewardSnapshot(
+                vm,
+                target,
+                user,
+                extraRewardsList[i]
+            );
+        }
     }
 
-    function readExtraRewardSnapshot(
+    function extraRewardSnapshot(
         Vm vm,
         address target,
         address user,

@@ -16,7 +16,7 @@ interface IsAVAX {
     function decimals() external view returns (uint8);
 }
 
-contract ReplayScript is Script {
+contract ReplayExtraRewardsScript is Script {
     string rpc;
     uint256 forkId;
     IJackRebalancePool rp;
@@ -56,20 +56,7 @@ contract ReplayScript is Script {
         userFirst = 0xF1102711b8df5EA6f934cb42F618ed040d0d5da6; // First user
         userMostActive = 0x16Fb7860Bd5e34E0021396fD79d7561eb4409023; // Most active user
 
-        // txHashPath = "/tests/data/tx_hashes.json"; // All tx hashes
-        txhashPath = "/tests/data/most_active_user_tx_hashes.json";
-
-        // Load the JSON file
-        string memory path = string.concat(vm.projectRoot(), txhashPath);
-        string memory json = vm.readFile(path);
-        // console.log("Loaded JSON bytes:", bytes(json).length);
-
-        // Parse the array at $.tx_hashes
-        bytes memory raw = vm.parseJson(json, "$.tx_hashes");
-        txHashes = abi.decode(raw, (bytes32[]));
-        console.log("Loaded %s tx hashes", txHashes.length);
-
-        path = string.concat(
+        string memory path = string.concat(
             vm.projectRoot(),
             "/tests/data/tx_hashes_users.ndjson"
         );
@@ -77,7 +64,7 @@ contract ReplayScript is Script {
         string memory line;
         bytes32 txHash;
         bytes32 oldTxHash;
-        uint256 txNumber = 5699; // Overall transaction counter
+        uint256 txNumber = 43; // Overall transaction counter
         uint256 txCount = 10000;
         uint256 txStop = txNumber + txCount; // Stop after txCount transactions
         uint256 txCounter = 1;
@@ -109,16 +96,18 @@ contract ReplayScript is Script {
 
             vm.rollFork(forkId, txHash);
 
-            Reader.StateCache memory preCache = Reader.writeStateCache(
+            Reader.UserRewardSnapshot memory preSnapshot = Reader.extraRewardSnapshot(
                 vm,
                 address(rp),
-                user
+                user,
+                baseToken
             );
             vm.transact(forkId, txHash);
-            Reader.StateCache memory postCache = Reader.writeStateCache(
+            Reader.UserRewardSnapshot memory postSnapshot = Reader.extraRewardSnapshot(
                 vm,
                 address(rp),
-                user
+                user,
+                baseToken
             );
 
             string memory txJson = string.concat(
@@ -133,15 +122,25 @@ contract ReplayScript is Script {
                 vm.toString(address(user)),
                 '",',
                 '"chain_id":43114,',
-                '"pre_state":',
-                preCache.stateJson,
+                '"pre_snapshot":',
+                "{",
+                '"pending":',
+                vm.toString(preSnapshot.pending),
                 ",",
-                '"post_state":',
-                postCache.stateJson,
-                "}"
+                '"accRewardsPerStake":',
+                vm.toString(preSnapshot.accRewardsPerStake),
+                "},",
+                '"post_snapshot":',
+                "{",
+                '"pending":',
+                vm.toString(postSnapshot.pending),
+                ",",
+                '"accRewardsPerStake":',
+                vm.toString(postSnapshot.accRewardsPerStake),
+                "}}"
             );
 
-            vm.writeLine("output.ndjson", txJson);
+            vm.writeLine("reward_snapshots.ndjson", txJson);
 
             oldTxHash = txHash;
             txNumber++;

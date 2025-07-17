@@ -254,136 +254,144 @@ contract ReplayTest is Test {
             "User baseReward.accRewardsPerStake:",
             userSnapshot.baseReward.accRewardsPerStake
         );
-    }
-
-    function testReplayToNDJSON() public {
-        string memory path = string.concat(
-            vm.projectRoot(),
-            "/tests/data/tx_hashes_users.ndjson"
+        console.log(
+            "User extraRewards[baseToken].pending:",
+            userSnapshot.extraRewards[0].pending
         );
-
-        string memory line;
-        bytes32 txHash;
-        bytes32 oldTxHash;
-        uint256 txNumber = 1005; // Overall transaction counter
-        uint256 txCount = 1000;
-        uint256 txStop = txNumber + txCount; // Stop after txCount transactions
-        uint256 txCounter = 1;
-
-        // Skip lines up to txNumber
-        while (txCounter <= txNumber) {
-            line = vm.readLine(path);
-            if (bytes(line).length == 0) {
-                console.log("Reached end of file before txNumber", txNumber);
-                return; // Exit if file ends before txNumber
-            }
-            txHash = bytes32(vm.parseJson(line, "$.tx_hash"));
-            if (txHash == oldTxHash) continue; // Skip duplicate tx_hashes
-            oldTxHash = txHash; // Update oldTxHash to current txHash
-            txCounter++; // Increment transaction counter
-        }
-
-        // Process lines from txNumber to txStop
-        oldTxHash = bytes32(0); // Reset oldTxHash for new processing
-        while (true) {
-            if (bytes(line).length == 0 || txNumber >= txStop) break; // End of file or exceeded txStop
-
-            // Parse the line into tx_hash and user
-            txHash = bytes32(vm.parseJson(line, "$.tx_hash"));
-            if (txHash == oldTxHash) continue; // Skip duplicate tx_hashes
-            user = vm.parseJsonAddress(line, "$.user");
-            // console.log("Processing tx_hash:", vm.toString(txHash));
-            // console.log("for user:", vm.toString(user));
-            // console.log("at tx_number:", txNumber);
-
-            uint256 chainId = 43114; // Avalanche mainnet chain ID
-
-            vm.rollFork(forkId, txHash);
-
-            // Capture pre-state in Cache using writeStateCache
-            Reader.StateCache memory preCache = Reader.writeStateCache(
-                vm,
-                address(rp),
-                user
-            );
-
-            // Replay the transaction
-            vm.transact(forkId, txHash);
-
-            // Capture post-state in Cache using writeStateCache
-            Reader.StateCache memory postCache = Reader.writeStateCache(
-                vm,
-                address(rp),
-                user
-            );
-
-            // Construct and write NDJSON line with user address
-            string memory txJson = string.concat(
-                "{",
-                '"tx_number":',
-                vm.toString(txNumber),
-                ",",
-                '"tx_hash":"',
-                vm.toString(txHash),
-                '",',
-                '"user":"',
-                vm.toString(address(user)), // Added user address
-                '",',
-                '"chain_id":',
-                vm.toString(chainId),
-                ",",
-                '"pre_state":',
-                preCache.stateJson,
-                ",",
-                '"post_state":',
-                postCache.stateJson,
-                "}"
-            );
-
-            vm.writeLine("output.ndjson", txJson);
-
-            oldTxHash = txHash; // Update oldTxHash to current txHash
-            txNumber++; // Increment transaction counter
-            line = vm.readLine(path);
-        }
-
-        vm.closeFile(path); // Close the file to reset offset for future reads
+        console.log(
+            "User extraRewards[baseToken].accRewardsPerStake:",
+            userSnapshot.extraRewards[0].accRewardsPerStake
+        );
     }
 
-    function testReplayAllHashes() public {
-        // for (uint256 i = 0; i < txHashes.length; i++) {
-        uint256 istart = 250;
-        uint256 icount = 250;
-        for (uint256 i = istart; i < istart + icount; i++) {
-            bytes32 txHash = txHashes[i];
-            vm.rollFork(forkId, txHash);
-            console.log("--------------");
-            console.log("block_number:", vm.getBlockNumber());
-            console.log("user_deposits (before):", rp.balanceOf(user));
-            console.log("user_unlocked (before):", rp.unlockedBalanceOf(user));
-            console.log("total_deposits (before):", rp.totalSupply());
-            console.log(
-                "total_rewards (before):",
-                IERC20(baseToken).balanceOf(address(rp))
-            );
-            if (i > 0) {
-                console.log(
-                    "claimable_rewards (before):",
-                    rp.claimable(user, baseToken)
-                );
-            }
-            vm.transact(forkId, txHash);
-            console.log("user_deposits (after):", rp.balanceOf(user));
-            console.log("user_unlocked (after):", rp.unlockedBalanceOf(user));
-            console.log("total_deposits (after):", rp.totalSupply());
-            console.log(
-                "total_rewards (after):",
-                IERC20(baseToken).balanceOf(address(rp))
-            );
-            console.log(
-                "claimable_rewards (after):",
-                rp.claimable(user, baseToken)
-            );
-        }
-    }
+    // function testReplayToNDJSON() public {
+    //     string memory path = string.concat(
+    //         vm.projectRoot(),
+    //         "/tests/data/tx_hashes_users.ndjson"
+    //     );
+
+    //     string memory line;
+    //     bytes32 txHash;
+    //     bytes32 oldTxHash;
+    //     uint256 txNumber = 1005; // Overall transaction counter
+    //     uint256 txCount = 1000;
+    //     uint256 txStop = txNumber + txCount; // Stop after txCount transactions
+    //     uint256 txCounter = 1;
+
+    //     // Skip lines up to txNumber
+    //     while (txCounter <= txNumber) {
+    //         line = vm.readLine(path);
+    //         if (bytes(line).length == 0) {
+    //             console.log("Reached end of file before txNumber", txNumber);
+    //             return; // Exit if file ends before txNumber
+    //         }
+    //         txHash = bytes32(vm.parseJson(line, "$.tx_hash"));
+    //         if (txHash == oldTxHash) continue; // Skip duplicate tx_hashes
+    //         oldTxHash = txHash; // Update oldTxHash to current txHash
+    //         txCounter++; // Increment transaction counter
+    //     }
+
+    //     // Process lines from txNumber to txStop
+    //     oldTxHash = bytes32(0); // Reset oldTxHash for new processing
+    //     while (true) {
+    //         if (bytes(line).length == 0 || txNumber >= txStop) break; // End of file or exceeded txStop
+
+    //         // Parse the line into tx_hash and user
+    //         txHash = bytes32(vm.parseJson(line, "$.tx_hash"));
+    //         if (txHash == oldTxHash) continue; // Skip duplicate tx_hashes
+    //         user = vm.parseJsonAddress(line, "$.user");
+    //         // console.log("Processing tx_hash:", vm.toString(txHash));
+    //         // console.log("for user:", vm.toString(user));
+    //         // console.log("at tx_number:", txNumber);
+
+    //         uint256 chainId = 43114; // Avalanche mainnet chain ID
+
+    //         vm.rollFork(forkId, txHash);
+
+    //         // Capture pre-state in Cache using writeStateCache
+    //         Reader.StateCache memory preCache = Reader.writeStateCache(
+    //             vm,
+    //             address(rp),
+    //             user
+    //         );
+
+    //         // Replay the transaction
+    //         vm.transact(forkId, txHash);
+
+    //         // Capture post-state in Cache using writeStateCache
+    //         Reader.StateCache memory postCache = Reader.writeStateCache(
+    //             vm,
+    //             address(rp),
+    //             user
+    //         );
+
+    //         // Construct and write NDJSON line with user address
+    //         string memory txJson = string.concat(
+    //             "{",
+    //             '"tx_number":',
+    //             vm.toString(txNumber),
+    //             ",",
+    //             '"tx_hash":"',
+    //             vm.toString(txHash),
+    //             '",',
+    //             '"user":"',
+    //             vm.toString(address(user)), // Added user address
+    //             '",',
+    //             '"chain_id":',
+    //             vm.toString(chainId),
+    //             ",",
+    //             '"pre_state":',
+    //             preCache.stateJson,
+    //             ",",
+    //             '"post_state":',
+    //             postCache.stateJson,
+    //             "}"
+    //         );
+
+    //         vm.writeLine("output.ndjson", txJson);
+
+    //         oldTxHash = txHash; // Update oldTxHash to current txHash
+    //         txNumber++; // Increment transaction counter
+    //         line = vm.readLine(path);
+    //     }
+
+    //     vm.closeFile(path); // Close the file to reset offset for future reads
+    // }
+
+    // function testReplayAllHashes() public {
+    //     // for (uint256 i = 0; i < txHashes.length; i++) {
+    //     uint256 istart = 250;
+    //     uint256 icount = 250;
+    //     for (uint256 i = istart; i < istart + icount; i++) {
+    //         bytes32 txHash = txHashes[i];
+    //         vm.rollFork(forkId, txHash);
+    //         console.log("--------------");
+    //         console.log("block_number:", vm.getBlockNumber());
+    //         console.log("user_deposits (before):", rp.balanceOf(user));
+    //         console.log("user_unlocked (before):", rp.unlockedBalanceOf(user));
+    //         console.log("total_deposits (before):", rp.totalSupply());
+    //         console.log(
+    //             "total_rewards (before):",
+    //             IERC20(baseToken).balanceOf(address(rp))
+    //         );
+    //         if (i > 0) {
+    //             console.log(
+    //                 "claimable_rewards (before):",
+    //                 rp.claimable(user, baseToken)
+    //             );
+    //         }
+    //         vm.transact(forkId, txHash);
+    //         console.log("user_deposits (after):", rp.balanceOf(user));
+    //         console.log("user_unlocked (after):", rp.unlockedBalanceOf(user));
+    //         console.log("total_deposits (after):", rp.totalSupply());
+    //         console.log(
+    //             "total_rewards (after):",
+    //             IERC20(baseToken).balanceOf(address(rp))
+    //         );
+    //         console.log(
+    //             "claimable_rewards (after):",
+    //             rp.claimable(user, baseToken)
+    //         );
+    //     }
+    // }
 }
