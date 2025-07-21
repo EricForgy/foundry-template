@@ -13,10 +13,11 @@ interface IERC20 {
 
 interface IsAVAX {
     function balanceOf(address account) external view returns (uint256);
+
     function decimals() external view returns (uint8);
 }
 
-contract ReplayExtraRewardsScript is Script {
+contract ReplayEpochsScript is Script {
     string rpc;
     uint256 forkId;
     IJackRebalancePool rp;
@@ -58,16 +59,21 @@ contract ReplayExtraRewardsScript is Script {
 
         string memory path = string.concat(
             vm.projectRoot(),
-            "/tests/data/tx_hashes_users.ndjson"
+            "/data/tx_hashes_users.ndjson"
         );
 
         string memory line;
         bytes32 txHash;
         bytes32 oldTxHash;
-        uint256 txNumber = 43; // Overall transaction counter
+        uint256 txNumber = 1; // Overall transaction counter
         uint256 txCount = 10000;
         uint256 txStop = txNumber + txCount; // Stop after txCount transactions
         uint256 txCounter = 1;
+
+        uint256 preBaseRewardSum;
+        uint256 preExtraRewardSum;
+        uint256 postBaseRewardSum;
+        uint256 postExtraRewardSum;
 
         // Skip lines up to txNumber
         while (txCounter <= txNumber) {
@@ -96,20 +102,34 @@ contract ReplayExtraRewardsScript is Script {
 
             vm.rollFork(forkId, txHash);
 
-            Reader.UserRewardSnapshot memory preSnapshot = Reader.extraRewardSnapshot(
+            preBaseRewardSum = Reader.epochToScaleToBaseRewardSum(
                 vm,
                 address(rp),
-                user,
-                baseToken
+                0,
+                0
+            );
+            preExtraRewardSum = Reader.epochToScaleToExtraRewardSum(
+                vm,
+                address(rp),
+                baseToken,
+                0,
+                0
             );
             vm.transact(forkId, txHash);
-            Reader.UserRewardSnapshot memory postSnapshot = Reader.extraRewardSnapshot(
+            postBaseRewardSum = Reader.epochToScaleToBaseRewardSum(
                 vm,
                 address(rp),
-                user,
-                baseToken
+                0,
+                0
             );
-
+            postExtraRewardSum = Reader.epochToScaleToExtraRewardSum(
+                vm,
+                address(rp),
+                baseToken,
+                0,
+                0
+            );
+            
             string memory txJson = string.concat(
                 "{",
                 '"tx_number":',
@@ -121,26 +141,25 @@ contract ReplayExtraRewardsScript is Script {
                 '"user":"',
                 vm.toString(address(user)),
                 '",',
-                '"chain_id":43114,',
                 '"pre_snapshot":',
                 "{",
-                '"pending":',
-                vm.toString(preSnapshot.pending),
+                '"baseRewardSum":',
+                vm.toString(preBaseRewardSum),
                 ",",
-                '"accRewardsPerStake":',
-                vm.toString(preSnapshot.accRewardsPerStake),
+                '"extraRewardSum":',
+                vm.toString(preExtraRewardSum),
                 "},",
                 '"post_snapshot":',
                 "{",
-                '"pending":',
-                vm.toString(postSnapshot.pending),
+                '"baseRewardSum":',
+                vm.toString(postBaseRewardSum),
                 ",",
-                '"accRewardsPerStake":',
-                vm.toString(postSnapshot.accRewardsPerStake),
+                '"extraRewardSum":',
+                vm.toString(postExtraRewardSum),
                 "}}"
             );
 
-            vm.writeLine("reward_snapshots.ndjson", txJson);
+            vm.writeLine("reward_sums.ndjson", txJson);
 
             oldTxHash = txHash;
             txNumber++;

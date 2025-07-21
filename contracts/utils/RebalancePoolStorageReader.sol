@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.28;
 
-import "forge-std/Vm.sol";
+import "forge-std/src/Vm.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
@@ -274,6 +274,90 @@ library RebalancePoolStorageReader {
         }
     }
 
+    function rewardManager(
+        Vm vm,
+        address target,
+        address rewardToken
+    ) internal view returns (address) {
+        return
+            address(
+                uint160(
+                    uint256(
+                        vm.load(
+                            target,
+                            keccak256(abi.encode(rewardToken, uint256(111)))
+                        )
+                    )
+                )
+            );
+    }
+
+    function extraRewardState(
+        Vm vm,
+        address target,
+        address rewardToken
+    ) internal view returns (RewardState memory r) {
+        bytes32 baseSlot = keccak256(
+            abi.encode(rewardToken, uint256(112)) // Changed to abi.encode
+        );
+        bytes32 word0 = _load(vm, target, uint256(baseSlot));
+        bytes32 word1 = _load(vm, target, uint256(baseSlot) + 1);
+
+        r.rate = uint256(word0);
+        r.periodLength = uint32(uint256(word1));
+        r.lastUpdate = uint48(uint256(word1) >> 32);
+        r.finishAt = uint48(uint256(word1) >> 80);
+        r.queued = uint256(_load(vm, target, uint256(baseSlot) + 2));
+    }
+
+    function epochToScaleToBaseRewardSum(
+        Vm vm,
+        address target,
+        uint256 epoch,
+        uint256 scale
+    ) internal view returns (uint256) {
+        return
+            uint256(
+                vm.load(
+                    target,
+                    keccak256(
+                        abi.encode(
+                            scale,
+                            keccak256(abi.encode(epoch, uint256(113)))
+                        )
+                    )
+                )
+            );
+    }
+
+    function epochToScaleToExtraRewardSum(
+        Vm vm,
+        address target,
+        address rewardToken,
+        uint256 epoch,
+        uint256 scale
+    ) internal view returns (uint256) {
+        return
+            uint256(
+                vm.load(
+                    target,
+                    keccak256(
+                        abi.encode(
+                            scale,
+                            keccak256(
+                                abi.encode(
+                                    epoch,
+                                    keccak256(
+                                        abi.encode(rewardToken, uint256(114))
+                                    )
+                                )
+                            )
+                        )
+                    )
+                )
+            );
+    }
+
     function epochState(
         Vm vm,
         address target
@@ -339,22 +423,18 @@ library RebalancePoolStorageReader {
         r.accRewardsPerStake = uint256(_load(vm, target, mappingSlot + 1));
     }
 
-    function readRewardState(
+    function unlockDuration(
         Vm vm,
-        address target,
-        address rewardToken
-    ) internal view returns (RewardState memory r) {
-        bytes32 baseSlot = keccak256(
-            abi.encode(rewardToken, uint256(112)) // Changed to abi.encode
-        );
-        bytes32 word0 = _load(vm, target, uint256(baseSlot));
-        bytes32 word1 = _load(vm, target, uint256(baseSlot) + 1);
+        address target
+    ) internal view returns (uint256) {
+        return uint256(vm.load(target, bytes32(uint256(117))));
+    }
 
-        r.rate = uint256(word0);
-        r.periodLength = uint32(uint256(word1));
-        r.lastUpdate = uint48(uint256(word1) >> 32);
-        r.finishAt = uint48(uint256(word1) >> 80);
-        r.queued = uint256(_load(vm, target, uint256(baseSlot) + 2));
+    function lastAssetLossError(
+        Vm vm,
+        address target
+    ) internal view returns (uint256) {
+        return uint256(vm.load(target, bytes32(uint256(118))));
     }
 
     // Cache struct to hold all state variables
@@ -376,7 +456,7 @@ library RebalancePoolStorageReader {
         address rewardToken = baseToken(vm, target);
         cache.totalSupply = totalSupply(vm, target);
         cache.epoch = epochState(vm, target);
-        cache.baseReward = readRewardState(vm, target, rewardToken);
+        cache.baseReward = extraRewardState(vm, target, rewardToken);
         cache.userSnap = userSnapshot(vm, target, user);
         cache.extraRewards = extraRewards(vm, target);
         cache.stateJson = string.concat(
@@ -400,6 +480,5 @@ library RebalancePoolStorageReader {
             writeJson(vm, cache.extraRewards),
             "}"
         );
-
     }
 }
