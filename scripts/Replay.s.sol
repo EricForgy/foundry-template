@@ -5,7 +5,7 @@ import "forge-std/Script.sol";
 import {console2 as console} from "forge-std/console2.sol";
 
 import "./IJackRebalancePool.sol";
-import {RebalancePoolStorageReader as Reader} from "../contracts/utils/RebalancePoolStorageReader.sol";
+import {RebalancePoolV1Reader as Reader} from "../libraries/v1/RebalancePoolV1Reader.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
@@ -69,10 +69,7 @@ contract ReplayScript is Script {
         txHashes = abi.decode(raw, (bytes32[]));
         console.log("Loaded %s tx hashes", txHashes.length);
 
-        path = string.concat(
-            vm.projectRoot(),
-            "/tests/data/tx_hashes_users.ndjson"
-        );
+        path = string.concat(vm.projectRoot(), "/tests/data/tx_hashes_users.ndjson");
 
         string memory line;
         bytes32 txHash;
@@ -109,17 +106,9 @@ contract ReplayScript is Script {
 
             vm.rollFork(forkId, txHash);
 
-            Reader.StateCache memory preCache = Reader.writeStateCache(
-                vm,
-                address(rp),
-                user
-            );
+            Reader.StateCache memory preCache = Reader.writeStateCache(vm, address(rp), user);
             vm.transact(forkId, txHash);
-            Reader.StateCache memory postCache = Reader.writeStateCache(
-                vm,
-                address(rp),
-                user
-            );
+            Reader.StateCache memory postCache = Reader.writeStateCache(vm, address(rp), user);
 
             string memory txJson = string.concat(
                 "{",

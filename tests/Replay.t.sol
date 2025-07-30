@@ -5,7 +5,7 @@ import "forge-std/Test.sol";
 // import { console } from "forge-std/console.sol";
 import {console2 as console} from "forge-std/console2.sol";
 import "./IJackRebalancePool.sol";
-import {RebalancePoolStorageReader as Reader} from "../contracts/utils/RebalancePoolStorageReader.sol";
+import {RebalancePoolV1Reader as Reader} from "../contracts/utils/v1/RebalancePoolV1Reader.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);

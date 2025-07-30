@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.28;
 
-import "forge-std/src/Script.sol";
-import {console2 as console} from "forge-std/src/console2.sol";
+import "forge-std/Script.sol";
+import {console2 as console} from "forge-std/console2.sol";
 
 import "./IJackRebalancePool.sol";
-import {RebalancePoolStorageReader as Reader} from "../contracts/utils/RebalancePoolStorageReader.sol";
+import {RebalancePoolV1Reader as Reader} from "../libraries/v1/RebalancePoolV1Reader.sol";
 
 interface IERC20 {
     function balanceOf(address account) external view returns (uint256);
@@ -57,10 +57,7 @@ contract ReplayEpochsScript is Script {
         userFirst = 0xF1102711b8df5EA6f934cb42F618ed040d0d5da6; // First user
         userMostActive = 0x16Fb7860Bd5e34E0021396fD79d7561eb4409023; // Most active user
 
-        string memory path = string.concat(
-            vm.projectRoot(),
-            "/data/tx_hashes_users.ndjson"
-        );
+        string memory path = string.concat(vm.projectRoot(), "/data/tx_hashes_users.ndjson");
 
         string memory line;
         bytes32 txHash;
@@ -102,34 +99,12 @@ contract ReplayEpochsScript is Script {
 
             vm.rollFork(forkId, txHash);
 
-            preBaseRewardSum = Reader.epochToScaleToBaseRewardSum(
-                vm,
-                address(rp),
-                0,
-                0
-            );
-            preExtraRewardSum = Reader.epochToScaleToExtraRewardSum(
-                vm,
-                address(rp),
-                baseToken,
-                0,
-                0
-            );
+            preBaseRewardSum = Reader.epochToScaleToBaseRewardSum(vm, address(rp), 0, 0);
+            preExtraRewardSum = Reader.epochToScaleToExtraRewardSum(vm, address(rp), baseToken, 0, 0);
             vm.transact(forkId, txHash);
-            postBaseRewardSum = Reader.epochToScaleToBaseRewardSum(
-                vm,
-                address(rp),
-                0,
-                0
-            );
-            postExtraRewardSum = Reader.epochToScaleToExtraRewardSum(
-                vm,
-                address(rp),
-                baseToken,
-                0,
-                0
-            );
-            
+            postBaseRewardSum = Reader.epochToScaleToBaseRewardSum(vm, address(rp), 0, 0);
+            postExtraRewardSum = Reader.epochToScaleToExtraRewardSum(vm, address(rp), baseToken, 0, 0);
+
             string memory txJson = string.concat(
                 "{",
                 '"tx_number":',
